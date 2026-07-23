@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<title>건강상담일지 확인</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  :root{
+    --bg:#F6F5F1; --surface:#FFFFFF; --surface-2:#FBFAF7;
+    --ink:#1E2A2F; --ink-soft:#5B6870; --ink-mute:#8B968C;
+    --line:#E3E0D6; --line-strong:#C9C4B4;
+    --teal:#0E6E63; --teal-deep:#0A4C44; --teal-tint:#E3F1EE;
+    --amber:#B8790C; --amber-tint:#FBF0DC;
+    --red:#B23A2E; --red-tint:#FBE7E3;
+    --sans:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+    --mono:'SFMono-Regular',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--sans); background:var(--bg); color:var(--ink);
+    font-size:15px; line-height:1.62; letter-spacing:-.011em;
+    padding:0 0 48px; -webkit-font-smoothing:antialiased;
+  }
+  .shell{max-width:600px;margin:0 auto;padding:0 18px;}
+
+  /* ── 상단 ── */
+  .masthead{
+    border-bottom:1px solid var(--line); background:var(--surface);
+    padding:20px 0 16px; margin-bottom:24px;
+  }
+  .masthead .shell{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .masthead h1{
+    font-size:16px; font-weight:700; margin:0; letter-spacing:-.02em; color:var(--teal-deep);
+  }
+  .masthead .org{font-size:12.5px;color:var(--ink-mute);font-weight:500;}
+
+  /* ── 상태 영역 ── */
+  .state{padding:56px 0;text-align:center;color:var(--ink-soft);}
+  .state .spin{
+    width:26px;height:26px;margin:0 auto 14px;border-radius:50%;
+    border:2.5px solid var(--line); border-top-color:var(--teal);
+    animation:sp .7s linear infinite;
+  }
+  @keyframes sp{to{transform:rotate(360deg);}}
+  .state h2{font-size:16px;margin:0 0 6px;color:var(--ink);font-weight:650;}
+  .state p{margin:0;font-size:13.5px;}
+  .state.err h2{color:var(--red);}
+
+  /* ── 본인확인 게이트 ── */
+  .gate{
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:26px 22px; text-align:center;
+  }
+  .gate h2{font-size:16.5px;margin:0 0 6px;font-weight:650;}
+  .gate p{margin:0 0 18px;font-size:13.5px;color:var(--ink-soft);}
+  .gate input{
+    width:100%;max-width:220px;padding:13px 14px;font-size:19px;text-align:center;
+    font-family:var(--mono);letter-spacing:.14em;
+    border:1px solid var(--line-strong);border-radius:9px;background:var(--surface-2);
+    color:var(--ink);
+  }
+  .gate input:focus{outline:2px solid var(--teal-tint);border-color:var(--teal);}
+  .gate .msg{min-height:20px;margin-top:12px;font-size:13px;color:var(--red);}
+
+  /* ── 상담일지 본문 ── */
+  .doc{
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:12px; overflow:hidden;
+  }
+  .doc-head{
+    padding:18px 22px 16px; border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,var(--teal-tint) 0%,var(--surface) 100%);
+  }
+  .doc-head .kicker{
+    font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--teal);
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .doc-head h2{font-size:18px;margin:0;font-weight:700;letter-spacing:-.02em;}
+  .meta{display:grid;grid-template-columns:auto 1fr;gap:9px 16px;padding:18px 22px;font-size:13.5px;border-bottom:1px solid var(--line);}
+  .meta dt{color:var(--ink-mute);font-weight:500;white-space:nowrap;}
+  .meta dd{margin:0;font-weight:600;}
+  .sec{padding:20px 22px;border-bottom:1px solid var(--line);}
+  .sec:last-child{border-bottom:none;}
+  .sec h3{
+    font-size:11.5px;font-weight:700;letter-spacing:.08em;color:var(--teal);
+    margin:0 0 10px;text-transform:uppercase;
+  }
+  .sec .body{white-space:pre-wrap;word-break:keep-all;font-size:14.5px;line-height:1.72;}
+
+  /* ── 동의 영역 (시그니처) ── */
+  .consent{margin-top:22px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px;}
+  .consent .note{font-size:13px;color:var(--ink-soft);margin:0 0 16px;word-break:keep-all;}
+  .consent .chk{display:flex;gap:11px;align-items:flex-start;margin-bottom:18px;cursor:pointer;}
+  .consent .chk input{width:19px;height:19px;margin:1px 0 0;accent-color:var(--teal);flex:none;}
+  .consent .chk span{font-size:14px;font-weight:600;word-break:keep-all;}
+  .btn{
+    display:block;width:100%;padding:15px;border:none;border-radius:10px;
+    background:var(--teal);color:#fff;font-family:var(--sans);
+    font-size:15.5px;font-weight:700;letter-spacing:-.01em;cursor:pointer;
+    transition:background .13s,opacity .13s;
+  }
+  .btn:hover:not(:disabled){background:var(--teal-deep);}
+  .btn:disabled{background:var(--line-strong);cursor:not-allowed;}
+
+  /* 확인 완료 = 도장. 종이 상담일지의 날인을 대신하는 자리 */
+  .stamp-wrap{padding:40px 22px;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;}
+  .stamp{
+    display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
+    width:132px;height:132px;border-radius:50%;
+    border:3px solid var(--teal);color:var(--teal);
+    font-weight:800;letter-spacing:.02em;
+    transform:rotate(-9deg) scale(.4);opacity:0;
+    animation:press .5s cubic-bezier(.2,1.5,.4,1) .1s forwards;
+  }
+  @keyframes press{to{transform:rotate(-9deg) scale(1);opacity:1;}}
+  .stamp .big{font-size:27px;line-height:1.15;}
+  .stamp .sm{font-size:11.5px;font-weight:700;margin-top:5px;letter-spacing:.06em;}
+  .stamp-wrap h2{font-size:17px;margin:22px 0 6px;font-weight:700;}
+  .stamp-wrap .when{font-size:13px;color:var(--ink-soft);font-family:var(--mono);}
+  .stamp-wrap .after{font-size:13px;color:var(--ink-mute);margin:16px 0 0;word-break:keep-all;}
+  @media (prefers-reduced-motion:reduce){
+    .stamp{animation:none;transform:rotate(-9deg);opacity:1;}
+    .state .spin{animation-duration:2s;}
+  }
+
+  .privacy{
+    margin-top:22px;padding:15px 17px;background:var(--surface-2);
+    border:1px solid var(--line);border-radius:10px;
+    font-size:12.5px;color:var(--ink-soft);line-height:1.7;word-break:keep-all;
+  }
+  .privacy b{color:var(--ink);font-weight:650;}
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="shell">
+    <h1>건강상담일지 확인</h1>
+    <span class="org" id="orgName">부산부민병원 보건관리실</span>
+  </div>
+</div>
+
+<div class="shell">
+
+  <!-- 1. 불러오는 중 -->
+  <div class="state" id="vLoading">
+    <div class="spin"></div>
+    <h2>상담일지를 여는 중입니다</h2>
+    <p>잠시만 기다려 주세요</p>
+  </div>
+
+  <!-- 2. 오류 -->
+  <div class="state err hidden" id="vError">
+    <h2 id="errTitle">상담일지를 열 수 없습니다</h2>
+    <p id="errBody"></p>
+  </div>
+
+  <!-- 3. 본인확인 -->
+  <div class="gate hidden" id="vGate">
+    <h2>본인 확인</h2>
+    <p>생년월일 앞 6자리를 입력해 주세요<br>(예: 1990년 3월 5일 → 900305)</p>
+    <input id="birthInput" type="tel" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="off">
+    <div class="msg" id="gateMsg"></div>
+  </div>
+
+  <!-- 4. 상담일지 + 동의 -->
+  <div class="hidden" id="vDoc">
+    <div class="doc">
+      <div class="doc-head">
+        <div class="kicker">건강상담일지</div>
+        <h2 id="dName">—</h2>
+      </div>
+      <dl class="meta" id="dMeta"></dl>
+      <div class="sec">
+        <h3>상담 내용</h3>
+        <div class="body" id="dContent"></div>
+      </div>
+      <div class="sec hidden" id="secExtra">
+        <h3 id="extraTitle">조치 및 권고</h3>
+        <div class="body" id="dExtra"></div>
+      </div>
+    </div>
+
+    <div class="consent">
+      <p class="note">위 상담 내용을 읽고 안내받았음을 확인합니다. 확인을 누르면 보건관리실에 확인 완료로 기록되며, 종이 서명을 대신합니다.</p>
+      <label class="chk">
+        <input type="checkbox" id="agreeChk">
+        <span>상담 내용을 확인했으며, 건강관리 목적의 상담 기록 보관에 동의합니다.</span>
+      </label>
+      <button class="btn" id="agreeBtn" disabled>확인 및 동의</button>
+      <div class="msg" id="docMsg" style="min-height:20px;margin-top:11px;font-size:13px;color:var(--red);"></div>
+    </div>
+  </div>
+
+  <!-- 5. 완료 -->
+  <div class="hidden" id="vDone">
+    <div class="stamp-wrap">
+      <div class="stamp"><span class="big">확인</span><span class="sm">CONFIRMED</span></div>
+      <h2>확인이 완료되었습니다</h2>
+      <div class="when" id="doneAt"></div>
+      <p class="after">보건관리실 화면에 확인 완료로 표시됩니다.<br>이 창은 닫으셔도 됩니다.</p>
+    </div>
+  </div>
+
+  <!-- 6. 설정 점검 (토큰 없이 그냥 열었을 때) -->
+  <div class="hidden" id="vSetup">
+    <div class="doc">
+      <div class="doc-head">
+        <div class="kicker">설치 확인</div>
+        <h2>연결 상태 점검</h2>
+      </div>
+      <div class="sec">
+        <div class="body" style="font-size:14px;">이 페이지는 <b>확인 링크로 열었을 때</b> 상담일지를 보여줍니다.<br>지금은 링크 없이 열려서 설치 상태만 점검합니다.</div>
+        <button class="btn" id="testBtn" style="margin-top:16px;">연결 테스트 실행</button>
+        <div id="testOut" style="margin-top:16px;font-size:13.5px;line-height:1.9;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="privacy">
+    <b>개인정보 안내</b><br>
+    이 페이지의 상담 내용은 <b>링크 안에 담긴 열쇠로만 풀 수 있도록 암호화</b>되어 있어, 서버는 내용을 읽을 수 없습니다.
+    서버에 남는 것은 확인 여부와 확인 시각뿐이며 이름·사번·주민번호는 저장되지 않습니다.
+    링크는 본인만 사용하시고 타인에게 전달하지 마세요.
+  </div>
+
+</div>
+
+<script type="module">
+/* ═══════════════════════════════════════════════════════════════════════
+   건강상담일지 확인 페이지
+   · 링크 형식 : ...?t=토큰#키
+   · 서버(Firestore)에는 [토큰 | 암호문 | 확인여부 | 확인시각] 만 저장
+   · 복호화 키는 URL 프래그먼트(#)에 있으며 브라우저가 서버로 보내지 않음
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ▼▼▼ 설정 — 병원 Firebase 정보로 바꿔 주세요 ▼▼▼ */
+const CFG = {
+  "apiKey": "AIzaSyDL6xM_D9-7odxojaOd6GYYRjG1VQlRC2M",
+  "authDomain": "bumin-consent.firebaseapp.com",
+  "projectId": "bumin-consent",
+  "storageBucket": "bumin-consent.firebasestorage.app",
+  "messagingSenderId": "456278548188",
+  "appId": "1:456278548188:web:e9072d5536cb66907e1e19"
+};
+const COLLECTION = "consents";
+const ORG        = "보건관리실";
+
+/* ▲▲▲ 설정 끝 ▲▲▲ */
+
+const $    = id => document.getElementById(id);
+const VIEWS = ["vLoading","vError","vGate","vDoc","vDone","vSetup"];
+const show = id => VIEWS.forEach(v => $(v).classList.toggle("hidden", v !== id));
+const esc  = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+$("orgName").textContent = ORG;
+
+function fail(title, body){
+  $("errTitle").textContent = title;
+  $("errBody").innerHTML    = body;
+  show("vError");
+}
+/* 오류 원인을 사람이 읽을 수 있는 말로 */
+function explain(e){
+  const c = String((e && (e.code || e.message)) || e || "");
+  if(/operation-not-allowed|configuration-not-found|admin-restricted/i.test(c))
+    return "Firebase 콘솔에서 <b>익명 로그인</b>이 아직 켜져 있지 않습니다.<br>Authentication → Sign-in method → 익명 → 사용 설정";
+  if(/permission-denied|insufficient/i.test(c))
+    return "Firestore <b>보안 규칙</b>이 consents 컬렉션 접근을 막고 있습니다.<br>규칙을 추가해 주세요.";
+  if(/api-key|invalid-api-key|invalid-argument/i.test(c))
+    return "Firebase 설정값(apiKey·projectId)이 올바르지 않습니다.";
+  if(/network|unavailable|failed to fetch|load failed|dynamically imported/i.test(c))
+    return "인터넷 연결이 막혀 있거나 불안정합니다.<br>사내망 방화벽이 gstatic.com·googleapis.com을 차단하는지 확인해 주세요.";
+  return esc(c) || "알 수 없는 오류";
+}
+
+/* ── Firebase 동적 로드 (실패해도 화면이 멈추지 않도록) ── */
+let FB = null;
+async function loadFB(){
+  if(FB) return FB;
+  const base = "https://www.gstatic.com/firebasejs/12.16.0/";
+  const [A, U, F] = await Promise.all([
+    import(base + "firebase-app.js"),
+    import(base + "firebase-auth.js"),
+    import(base + "firebase-firestore.js")
+  ]);
+  const app = A.initializeApp(CFG);
+  await U.signInAnonymously(U.getAuth(app));
+  FB = { F, db: F.getFirestore(app) };
+  return FB;
+}
+
+/* ── 복호화 (AES-GCM 256) ── */
+const b64ToBuf = b64 => {
+  const t = b64.replace(/-/g,"+").replace(/_/g,"/");
+  const bin = atob(t + "=".repeat((4 - t.length % 4) % 4));
+  const u = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u[i] = bin.charCodeAt(i);
+  return u;
+};
+async function decrypt(encB64, ivB64, keyB64){
+  const key = await crypto.subtle.importKey("raw", b64ToBuf(keyB64), "AES-GCM", false, ["decrypt"]);
+  const pt  = await crypto.subtle.decrypt({name:"AES-GCM", iv:b64ToBuf(ivB64)}, key, b64ToBuf(encB64));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+const TYPE_LABEL = {gen:"일반건강검진", spc:"특수건강검진", hire:"채용건강검진", vac:"예방접종", acc:"안전사고", etc:"건강상담"};
+let docRef = null, payload = null, alreadyDone = false, doneStamp = "";
+
+/* ── URL 먼저 확인 (모듈 로드보다 앞) ── */
+const token  = new URLSearchParams(location.search).get("t") || "";
+const keyB64 = location.hash.replace(/^#/, "");
+
+if(!token && !keyB64){
+  show("vSetup");                       /* 그냥 열었을 때 → 설치 점검 화면 */
+} else if(!token || !keyB64){
+  fail("링크가 완전하지 않습니다", "주소가 잘린 것 같습니다. 받으신 링크 <b>전체</b>를 복사해 다시 열어 주세요.<br>(특히 <b>#</b> 뒷부분이 빠지면 열 수 없습니다.)");
+} else {
+  start();
+}
+
+async function start(){
+  let fb;
+  try{
+    fb = await loadFB();
+  }catch(e){
+    fail("서버에 연결하지 못했습니다", explain(e));
+    return;
+  }
+  try{
+    docRef = fb.F.doc(fb.db, COLLECTION, token);
+    const snap = await fb.F.getDoc(docRef);
+    if(!snap.exists()){
+      fail("만료되었거나 없는 링크입니다", "보건관리실에 새 링크를 요청해 주세요.");
+      return;
+    }
+    const d = snap.data();
+    if(d.status === "완료"){ alreadyDone = true; doneStamp = d.doneAtText || ""; }
+    if(!d.enc){
+      $("doneAt").textContent = doneStamp ? "확인 시각 " + doneStamp : "";
+      show("vDone");
+      return;
+    }
+    try{
+      payload = await decrypt(d.enc, d.iv, keyB64);
+    }catch(e){
+      fail("내용을 열 수 없습니다", "링크의 열쇠 부분(<b>#</b> 뒤)이 잘렸을 수 있습니다.<br>받으신 링크 전체를 복사해 다시 열어 주세요.");
+      return;
+    }
+    if(payload.birth6){ show("vGate"); $("birthInput").focus(); }
+    else renderDoc();
+  }catch(e){
+    fail("상담일지를 불러오지 못했습니다", explain(e));
+  }
+}
+
+/* ── 본인확인 ── */
+$("birthInput").addEventListener("input", e => {
+  const v = e.target.value.replace(/\D/g,"").slice(0,6);
+  e.target.value = v;
+  $("gateMsg").textContent = "";
+  if(v.length === 6){
+    if(v === payload.birth6) renderDoc();
+    else $("gateMsg").textContent = "생년월일이 일치하지 않습니다.";
+  }
+});
+
+/* ── 상담일지 표시 ── */
+function renderDoc(){
+  $("dName").textContent = (payload.name || "") + " 님";
+  const rows = [
+    ["상담일",    payload.date],
+    ["상담 구분", TYPE_LABEL[payload.type] || "건강상담"],
+    ["상담자",    payload.counselor],
+    ["소속",      payload.dept]
+  ].filter(r => r[1]);
+  $("dMeta").innerHTML = rows.map(r => `<dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd>`).join("");
+  $("dContent").textContent = payload.content || "";
+  const extra = payload.consent || payload.exResult || "";
+  if(extra){
+    $("extraTitle").textContent = payload.consent ? "조치 및 권고" : "검진 결과";
+    $("dExtra").textContent = extra;
+    $("secExtra").classList.remove("hidden");
+  }
+  if(alreadyDone){
+    $("doneAt").textContent = doneStamp ? "확인 시각 " + doneStamp : "";
+    show("vDone");
+  } else show("vDoc");
+}
+
+/* ── 동의 ── */
+$("agreeChk").addEventListener("change", e => { $("agreeBtn").disabled = !e.target.checked; });
+$("agreeBtn").addEventListener("click", async () => {
+  const btn = $("agreeBtn");
+  btn.disabled = true; btn.textContent = "기록하는 중…"; $("docMsg").textContent = "";
+  const now = new Date(), p = n => String(n).padStart(2,"0");
+  const text = `${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())} ${p(now.getHours())}:${p(now.getMinutes())}`;
+  try{
+    const fb = await loadFB();
+    /* 내용(enc·iv)은 지우고 확인 증적만 남긴다 */
+    await fb.F.updateDoc(docRef, { status:"완료", doneAt: fb.F.serverTimestamp(), doneAtText: text, enc:"", iv:"" });
+    $("doneAt").textContent = "확인 시각 " + text;
+    show("vDone");
+  }catch(e){
+    btn.disabled = false; btn.textContent = "확인 및 동의";
+    $("docMsg").innerHTML = "기록하지 못했습니다. " + explain(e);
+  }
+});
+
+/* ── 연결 테스트 (설치 점검 화면) ── */
+$("testBtn").addEventListener("click", async function(){
+  const out = $("testOut"); this.disabled = true; this.textContent = "확인 중…";
+  const line = (ok, label, detail) =>
+    `<div style="margin-bottom:4px;">${ok ? "✅" : "❌"} <b>${label}</b>${detail ? '<br><span style="color:var(--ink-soft);font-size:12.5px;">'+detail+"</span>" : ""}</div>`;
+  let html = "";
+  try{
+    const fb = await loadFB();
+    html += line(true, "Firebase 연결 및 익명 로그인");
+    try{
+      await fb.F.getDoc(fb.F.doc(fb.db, COLLECTION, "__test__"));
+      html += line(true, "Firestore 읽기 권한 (" + COLLECTION + ")");
+      html += `<div style="margin-top:14px;padding:12px 14px;background:var(--teal-tint);border-radius:8px;color:var(--teal-deep);font-weight:650;">설치가 정상입니다. 프로그램에서 확인링크를 만들어 보세요.</div>`;
+    }catch(e2){
+      html += line(false, "Firestore 읽기 권한 (" + COLLECTION + ")", explain(e2));
+    }
+  }catch(e){
+    html += line(false, "Firebase 연결 및 익명 로그인", explain(e));
+  }
+  out.innerHTML = html;
+  this.disabled = false; this.textContent = "연결 테스트 다시 실행";
+});
+</script>
+</body>
+</html>
