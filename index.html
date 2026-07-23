@@ -272,8 +272,10 @@ function explain(e){
     return "Firebase 콘솔에서 <b>익명 로그인</b>이 아직 켜져 있지 않습니다.<br>Authentication → Sign-in method → 익명 → 사용 설정";
   if(/permission-denied|insufficient/i.test(c))
     return "Firestore <b>보안 규칙</b>이 consents 컬렉션 접근을 막고 있습니다.<br>규칙을 추가해 주세요.";
-  if(/api-key|invalid-api-key|invalid-argument/i.test(c))
+  if(/api-key|invalid-api-key|API key not valid/i.test(c))
     return "Firebase 설정값(apiKey·projectId)이 올바르지 않습니다.";
+  if(/invalid-argument|not-found|does not exist/i.test(c))
+    return "데이터베이스를 찾지 못했습니다.<br>Firestore가 만들어져 있는지, 프로그램이 최신 파일인지 확인해 주세요.";
   if(/network|unavailable|failed to fetch|load failed|dynamically imported/i.test(c))
     return "인터넷 연결이 막혀 있거나 불안정합니다.<br>사내망 방화벽이 gstatic.com·googleapis.com을 차단하는지 확인해 주세요.";
   return esc(c) || "알 수 없는 오류";
@@ -422,7 +424,7 @@ $("testBtn").addEventListener("click", async function(){
     const fb = await loadFB();
     html += line(true, "Firebase 연결 및 익명 로그인");
     try{
-      await fb.F.getDoc(fb.F.doc(fb.db, COLLECTION, "__test__"));
+      await fb.F.getDoc(fb.F.doc(fb.db, COLLECTION, "conntest"));
       html += line(true, "Firestore 읽기 권한 (" + COLLECTION + ")");
       html += `<div style="margin-top:14px;padding:12px 14px;background:var(--teal-tint);border-radius:8px;color:var(--teal-deep);font-weight:650;">설치가 정상입니다. 프로그램에서 확인링크를 만들어 보세요.</div>`;
     }catch(e2){
