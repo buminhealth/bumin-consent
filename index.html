@@ -134,6 +134,21 @@
     font-size:12.5px;color:var(--ink-soft);line-height:1.7;word-break:keep-all;
   }
   .privacy b{color:var(--ink);font-weight:650;}
+  /* 서명 패드 */
+  .sigwrap{margin:16px 0 6px;}
+  .sigwrap .lbl{font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;font-weight:600;}
+  .sigbox{position:relative;border:1.5px dashed var(--line-strong);border-radius:10px;background:var(--surface-2);overflow:hidden;}
+  .sigbox canvas{display:block;width:100%;height:150px;touch-action:none;cursor:crosshair;}
+  .sigbox .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:var(--ink-mute);font-size:13.5px;pointer-events:none;}
+  .sigbox.inked{border-style:solid;border-color:var(--teal);background:var(--surface);}
+  .sigbox.inked .ph{display:none;}
+  .sigbar{display:flex;justify-content:flex-end;margin-top:7px;}
+  .sigbar button{border:1px solid var(--line);background:var(--surface);border-radius:7px;
+    padding:6px 13px;font-size:12.5px;font-family:var(--sans);color:var(--ink-soft);cursor:pointer;}
+  .sigbar button:hover{border-color:var(--line-strong);}
+  .doneSig{margin-top:10px;}
+  .doneSig img{max-width:150px;max-height:56px;}
   .hidden{display:none !important;}
 </style>
 </head>
@@ -187,14 +202,27 @@
       </div>
     </div>
 
-    <div class="consent">
+    <div class="consent" id="consentBox">
       <p class="note">위 상담 내용을 읽고 안내받았음을 확인합니다. 확인을 누르면 보건관리실에 확인 완료로 기록되며, 종이 서명을 대신합니다.</p>
       <label class="chk">
         <input type="checkbox" id="agreeChk">
         <span>상담 내용을 확인했으며, 건강관리 목적의 상담 기록 보관에 동의합니다.</span>
       </label>
+      <div class="sigwrap">
+        <div class="lbl">서명 — 아래 칸에 손가락이나 마우스로 서명해 주세요</div>
+        <div class="sigbox" id="sigBox">
+          <canvas id="sigCanvas"></canvas>
+          <div class="ph">여기에 서명</div>
+        </div>
+        <div class="sigbar"><button type="button" id="sigClear">지우기</button></div>
+      </div>
       <button class="btn" id="agreeBtn" disabled>확인 및 동의</button>
       <div class="msg" id="docMsg" style="min-height:20px;margin-top:11px;font-size:13px;color:var(--red);"></div>
+    </div>
+    <div class="consent hidden" id="doneBox" style="text-align:center;">
+      <div style="font-size:15.5px;font-weight:700;color:var(--teal);">✅ 확인이 완료된 상담일지입니다</div>
+      <div id="doneAt2" style="margin-top:6px;font-size:13px;color:var(--ink-soft);font-family:var(--mono);"></div>
+      <div class="doneSig" id="doneSig"></div>
     </div>
   </div>
 
@@ -204,7 +232,7 @@
       <div class="stamp"><span class="big">확인</span><span class="sm">CONFIRMED</span></div>
       <h2>확인이 완료되었습니다</h2>
       <div class="when" id="doneAt"></div>
-      <p class="after">보건관리실 화면에 확인 완료로 표시됩니다.<br>이 창은 닫으셔도 됩니다.</p>
+      <p class="after">보건관리실 화면에 확인 완료로 표시됩니다.<br>이 창은 닫으셔도 됩니다.<br><span id="reviewHint" style="color:var(--ink-mute);"></span></p>
     </div>
   </div>
 
@@ -305,6 +333,18 @@ const b64ToBuf = b64 => {
   for(let i=0;i<bin.length;i++) u[i] = bin.charCodeAt(i);
   return u;
 };
+function bufToB64(buf){
+  var u = new Uint8Array(buf), CH = 0x8000, bs = "";
+  for(var bi=0; bi<u.length; bi+=CH) bs += String.fromCharCode.apply(null, u.subarray(bi, bi+CH));
+  var b = btoa(bs);
+  return b.replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+async function encryptWithKey(text, keyB64){
+  var key = await crypto.subtle.importKey("raw", b64ToBuf(keyB64), "AES-GCM", false, ["encrypt"]);
+  var iv  = crypto.getRandomValues(new Uint8Array(12));
+  var ct  = await crypto.subtle.encrypt({name:"AES-GCM", iv:iv}, key, new TextEncoder().encode(text));
+  return {enc: bufToB64(ct), iv: bufToB64(iv)};
+}
 async function decrypt(encB64, ivB64, keyB64){
   const key = await crypto.subtle.importKey("raw", b64ToBuf(keyB64), "AES-GCM", false, ["decrypt"]);
   const pt  = await crypto.subtle.decrypt({name:"AES-GCM", iv:b64ToBuf(ivB64)}, key, b64ToBuf(encB64));
@@ -312,7 +352,7 @@ async function decrypt(encB64, ivB64, keyB64){
 }
 
 const TYPE_LABEL = {gen:"일반건강검진", spc:"특수건강검진", hire:"채용건강검진", vac:"예방접종", acc:"안전사고", etc:"건강상담"};
-let docRef = null, payload = null, alreadyDone = false, doneStamp = "";
+let docRef = null, payload = null, alreadyDone = false, doneStamp = "", keepDays = 0, doneSigUrl = "";
 
 /* ── URL 먼저 확인 (모듈 로드보다 앞) ── */
 const token  = new URLSearchParams(location.search).get("t") || "";
@@ -341,8 +381,23 @@ async function start(){
       fail("만료되었거나 없는 링크입니다", "보건관리실에 새 링크를 요청해 주세요.");
       return;
     }
-    const d = snap.data();
-    if(d.status === "완료"){ alreadyDone = true; doneStamp = d.doneAtText || ""; }
+    let d = snap.data();
+    if(d.status === "완료"){
+      alreadyDone = true; doneStamp = d.doneAtText || "";
+      if(d.sigEnc && d.sigIv){
+        try{
+          const k = await crypto.subtle.importKey("raw", b64ToBuf(keyB64), "AES-GCM", false, ["decrypt"]);
+          const pt = await crypto.subtle.decrypt({name:"AES-GCM", iv:b64ToBuf(d.sigIv)}, k, b64ToBuf(d.sigEnc));
+          doneSigUrl = new TextDecoder().decode(pt);
+        }catch(e){}
+      }
+    }
+    /* 보관기한이 지났으면 페이지가 스스로 내용을 지운다 */
+    if(d.enc && d.expireAt && new Date().toISOString().slice(0,10) > d.expireAt){
+      try{ await fb.F.updateDoc(docRef, { enc:"", iv:"" }); }catch(e){}
+      d = Object.assign({}, d, { enc:"", iv:"" });
+    }
+    keepDays = Number(d.keepDays || 0);
     if(!d.enc){
       $("doneAt").textContent = doneStamp ? "확인 시각 " + doneStamp : "";
       show("vDone");
@@ -390,13 +445,92 @@ function renderDoc(){
     $("secExtra").classList.remove("hidden");
   }
   if(alreadyDone){
-    $("doneAt").textContent = doneStamp ? "확인 시각 " + doneStamp : "";
-    show("vDone");
-  } else show("vDoc");
+    $("consentBox").classList.add("hidden");
+    $("doneBox").classList.remove("hidden");
+    $("doneAt2").textContent = doneStamp ? "확인 시각 " + doneStamp : "";
+    if(doneSigUrl) $("doneSig").innerHTML = '<img src="'+doneSigUrl+'" alt="서명">';
+  } else {
+    $("consentBox").classList.remove("hidden");
+    $("doneBox").classList.add("hidden");
+    setTimeout(function(){ sigPad.refit(); }, 40);
+  }
+  show("vDoc");
+}
+
+/* ── 서명 패드 ── */
+const sigPad = (function(){
+  const cv = $("sigCanvas"), box = $("sigBox");
+  let ctx = null, drawing = false, inked = false;
+  function fit(){
+    const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    const data = inked ? cv.toDataURL("image/png") : null;
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+    ctx = cv.getContext("2d");
+    ctx.scale(dpr, dpr);
+    ctx.strokeStyle = "#1E2A2F"; ctx.lineWidth = 2.2; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    if(data){ const im = new Image(); im.onload = () => ctx.drawImage(im, 0, 0, r.width, r.height); im.src = data; }
+  }
+  function pos(e){
+    const r = cv.getBoundingClientRect(), t = e.touches ? e.touches[0] : e;
+    return {x: t.clientX - r.left, y: t.clientY - r.top};
+  }
+  function down(e){ e.preventDefault(); drawing = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
+  function move(e){
+    if(!drawing) return; e.preventDefault();
+    const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke();
+    if(!inked){ inked = true; box.classList.add("inked"); sync(); }
+  }
+  function up(){ drawing = false; }
+  ["mousedown","touchstart"].forEach(t => cv.addEventListener(t, down, {passive:false}));
+  ["mousemove","touchmove"].forEach(t => cv.addEventListener(t, move, {passive:false}));
+  ["mouseup","mouseleave","touchend","touchcancel"].forEach(t => cv.addEventListener(t, up));
+  $("sigClear").addEventListener("click", () => {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    inked = false; box.classList.remove("inked"); sync();
+  });
+  window.addEventListener("resize", fit);
+  setTimeout(fit, 60);
+  /* 저장용으로는 잉크 범위만 잘라 400×120 으로 줄인다 — 용량이 1/4 로 준다 */
+  function trimmed(){
+    if(!inked) return null;
+    const w = cv.width, h = cv.height;
+    const img = ctx.getImageData(0, 0, w, h).data;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for(let y = 0; y < h; y++){
+      for(let x = 0; x < w; x++){
+        if(img[(y*w + x)*4 + 3] > 12){
+          if(x < x0) x0 = x; if(x > x1) x1 = x;
+          if(y < y0) y0 = y; if(y > y1) y1 = y;
+        }
+      }
+    }
+    if(x1 < 0) return null;
+    const pad = Math.round(Math.min(w, h) * 0.03);
+    x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad);
+    x1 = Math.min(w - 1, x1 + pad); y1 = Math.min(h - 1, y1 + pad);
+    const sw = x1 - x0 + 1, sh = y1 - y0 + 1;
+    const MAXW = 400, MAXH = 120;
+    const r = Math.min(MAXW / sw, MAXH / sh, 1);
+    const out = document.createElement("canvas");
+    out.width = Math.max(1, Math.round(sw * r));
+    out.height = Math.max(1, Math.round(sh * r));
+    const octx = out.getContext("2d");
+    octx.imageSmoothingQuality = "high";
+    octx.drawImage(cv, x0, y0, sw, sh, 0, 0, out.width, out.height);
+    return out.toDataURL("image/png");
+  }
+  return {
+    isEmpty: () => !inked,
+    dataUrl: () => trimmed(),
+    refit: fit
+  };
+})();
+function sync(){
+  $("agreeBtn").disabled = !($("agreeChk").checked && !sigPad.isEmpty());
 }
 
 /* ── 동의 ── */
-$("agreeChk").addEventListener("change", e => { $("agreeBtn").disabled = !e.target.checked; });
+$("agreeChk").addEventListener("change", sync);
 $("agreeBtn").addEventListener("click", async () => {
   const btn = $("agreeBtn");
   btn.disabled = true; btn.textContent = "기록하는 중…"; $("docMsg").textContent = "";
@@ -404,9 +538,27 @@ $("agreeBtn").addEventListener("click", async () => {
   const text = `${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())} ${p(now.getHours())}:${p(now.getMinutes())}`;
   try{
     const fb = await loadFB();
-    /* 내용(enc·iv)은 지우고 확인 증적만 남긴다 */
-    await fb.F.updateDoc(docRef, { status:"완료", doneAt: fb.F.serverTimestamp(), doneAtText: text, enc:"", iv:"" });
+    const upd = { status:"완료", doneAt: fb.F.serverTimestamp(), doneAtText: text };
+    /* 서명 이미지도 같은 열쇠로 암호화 — 서버는 서명을 볼 수 없다 */
+    const sigUrl = sigPad.dataUrl();
+    if(sigUrl){
+      const se = await encryptWithKey(sigUrl, keyB64);
+      upd.sigEnc = se.enc; upd.sigIv = se.iv;
+    }
+    if(keepDays > 0){
+      /* 근로자가 다시 볼 수 있도록 보관기한까지 내용을 남긴다 */
+      const e = new Date(); e.setDate(e.getDate() + keepDays);
+      upd.expireAt = e.toISOString().slice(0,10);
+    } else {
+      upd.enc = ""; upd.iv = "";     /* 즉시 삭제 — 서버에 민감정보를 남기지 않는다 */
+    }
+    await fb.F.updateDoc(docRef, upd);
     $("doneAt").textContent = "확인 시각 " + text;
+    if(sigUrl) $("doneSig").innerHTML = '<img src="'+sigUrl+'" alt="서명">';
+    const rh = $("reviewHint");
+    if(rh) rh.textContent = keepDays > 0
+      ? "이 링크로 " + keepDays + "일 동안 다시 열어보실 수 있습니다."
+      : "보안을 위해 상담 내용은 지금 서버에서 삭제되었습니다.";
     show("vDone");
   }catch(e){
     btn.disabled = false; btn.textContent = "확인 및 동의";
