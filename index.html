@@ -200,6 +200,10 @@
         <h3 id="extraTitle">조치 및 권고</h3>
         <div class="body" id="dExtra"></div>
       </div>
+      <div class="sec hidden" id="secLeaflet">
+        <h3>📄 건강정보 안내문</h3>
+        <div class="body" id="dLeaflet"></div>
+      </div>
     </div>
 
     <div class="consent" id="consentBox">
@@ -443,6 +447,10 @@ function renderDoc(){
     $("extraTitle").textContent = payload.consent ? "조치 및 권고" : "검진 결과";
     $("dExtra").textContent = extra;
     $("secExtra").classList.remove("hidden");
+  }
+  if(payload.leaflet){
+    $("dLeaflet").textContent = payload.leaflet;
+    $("secLeaflet").classList.remove("hidden");
   }
   if(alreadyDone){
     $("consentBox").classList.add("hidden");
