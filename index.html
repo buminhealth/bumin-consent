@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -91,6 +92,25 @@
     margin:0 0 10px;text-transform:uppercase;
   }
   .sec .body{white-space:pre-wrap;word-break:keep-all;font-size:14.5px;line-height:1.72;}
+
+  /* ── v9.9.83: 건강정보 안내문 아코디언 ── */
+  .lf-acc{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden;}
+  .lf-acc:last-child{margin-bottom:0;}
+  .lf-head{
+    width:100%;text-align:left;background:var(--surface-2,#F7F7F5);border:none;cursor:pointer;
+    padding:12px 14px;font-size:14px;font-weight:700;color:var(--ink,#1E2A2F);
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .lf-head .lf-arrow{color:var(--teal);font-size:12px;transition:transform .15s;}
+  .lf-head.open .lf-arrow{transform:rotate(180deg);}
+  .lf-body{padding:14px 16px;border-top:1px solid var(--line);}
+  .lf-body.hidden{display:none;}
+  .lf-sum{background:var(--teal-tint,#E3F1EE);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;font-weight:600;color:var(--teal-deep,#0A4C44);}
+  .lf-sec{margin-bottom:12px;}
+  .lf-sec:last-child{margin-bottom:0;}
+  .lf-sec h4{font-size:13px;color:var(--teal);margin:0 0 5px;}
+  .lf-sec ul{margin:0;padding-left:18px;}
+  .lf-sec li{font-size:13px;margin-bottom:4px;line-height:1.55;}
 
   /* ── 동의 영역 (시그니처) ── */
   .consent{margin-top:22px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px;}
@@ -201,8 +221,8 @@
         <div class="body" id="dExtra"></div>
       </div>
       <div class="sec hidden" id="secLeaflet">
-        <h3>📄 건강정보 안내문</h3>
-        <div class="body" id="dLeaflet"></div>
+        <h3>📄 건강정보 안내문 <span style="text-transform:none;font-weight:400;color:var(--ink-mute);">— 제목을 눌러 펼쳐보세요</span></h3>
+        <div id="dLeaflet"></div>
       </div>
     </div>
 
@@ -448,8 +468,29 @@ function renderDoc(){
     $("dExtra").textContent = extra;
     $("secExtra").classList.remove("hidden");
   }
-  if(payload.leaflet){
-    $("dLeaflet").textContent = payload.leaflet;
+  if(payload.leaflets && payload.leaflets.length){
+    $("dLeaflet").innerHTML = payload.leaflets.map(function(L, i){
+      var secs = (L.sections||[]).map(function(s){
+        return '<div class="lf-sec"><h4>'+esc(s.h)+'</h4><ul>'
+          + (s.items||[]).map(function(it){ return '<li>'+esc(it)+'</li>'; }).join("")
+          + '</ul></div>';
+      }).join("");
+      return '<div class="lf-acc">'
+        + '<button type="button" class="lf-head" data-i="'+i+'">'
+          + '<span>'+esc(L.emoji||"📄")+' '+esc(L.title)+'</span><span class="lf-arrow">▾</span></button>'
+        + '<div class="lf-body hidden" id="lfbody'+i+'">'
+          + (L.summary ? '<div class="lf-sum">💡 '+esc(L.summary)+'</div>' : "")
+          + secs
+        + '</div></div>';
+    }).join("");
+    document.querySelectorAll(".lf-head").forEach(function(b){
+      b.addEventListener("click", function(){
+        var body = $("lfbody"+b.dataset.i);
+        var open = !body.classList.contains("hidden");
+        body.classList.toggle("hidden", open);
+        b.classList.toggle("open", !open);
+      });
+    });
     $("secLeaflet").classList.remove("hidden");
   }
   if(alreadyDone){
